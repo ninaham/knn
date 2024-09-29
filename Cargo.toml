@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 star = { git = "https://github.com/thm-mni-ii/StaR" }
+rand = "0.8.4"

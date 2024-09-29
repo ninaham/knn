@@ -5,7 +5,8 @@ use std::{
     io::BufReader,
 };
 
-use star::data_structures::{bitvec::FastBitvec, graph::{self, Graph}};
+use rand::Rng;
+use star::{algorithms::bfs::StandardBFS, data_structures::{bitvec::FastBitvec, graph::{self, Graph}}};
 
 #[derive(Clone, Debug)]
 struct VertexCover {
@@ -24,6 +25,25 @@ fn main() {
     for vc in vertex_covers {
         println!("graph: {}, greedy: {}, nn: {}", vc.name, greedy_vertex_cover_deg(&vc), greedy_vertex_cover_probabilities(&vc));
     }
+
+    /*let f = File::open("./road-germany-osm.mtx").expect("file not found");
+    let buf_read = BufReader::new(f);
+    let graph = Graph::try_from(buf_read).unwrap();
+
+    for i in 0..1001 {
+        println!("iteration: {}", i);
+        let walk = generate_random_walk(&graph, 150);
+        println!("walk generated");
+        let new_graph = graph_from_walk(&walk, &graph);
+        println!("graph from walk created");
+        new_graph.write_to_file(format!("./new_graphs/road-germany-osm-{}.mtx", i).as_str()).unwrap();
+        println!("graph written to file");
+        println!("------------------------------------------------------")
+    }*/
+
+    
+
+
 }
 
 fn read_file(path: String) -> Vec<VertexCover> {
@@ -161,4 +181,49 @@ fn greedy_vertex_cover_probabilities(vc: &VertexCover) -> usize{
     }
 
     cover.len()
+}
+
+fn generate_random_walk(graph: &Graph, length: usize) -> Vec<usize> {
+    let mut walk = Vec::new();
+    let mut rng = rand::thread_rng();
+    walk.push(rng.gen_range(0..graph.edges.len()));
+
+    for _ in 0..length {
+        let mut x = rng.gen_range(0..walk.len());
+        let mut y = rng.gen_range(0..graph.edges[walk[x] as usize].len());
+        while walk.contains(&graph.edges[walk[x] as usize][y]) {
+            x = rng.gen_range(0..walk.len());
+            y = rng.gen_range(0..graph.edges[walk[x] as usize].len());
+        }
+        let next = graph.edges[walk[x] as usize][y];
+        walk.push(next);
+    }
+
+    walk
+}
+
+fn graph_from_walk(walk: &Vec<usize>, old_graph: &Graph) -> Graph {
+    let mut old_graph = old_graph.clone();
+
+    for i in 0..old_graph.nodes {
+        if !walk.contains(&i) {
+            old_graph.remove_node(i);
+        }
+    }
+    let mut map = HashMap::new();
+    let mut graph = Graph::new_with_nodes(walk.len());
+
+    for i in 0..walk.len() {
+        map.insert(walk[i], i);
+    }
+
+    for n in walk {
+        for m in old_graph.edges[*n].clone() {
+            graph.add_edge((map[n], map[&m]));
+        }
+    }
+
+    assert!(StandardBFS::new(&graph, 0, &mut FastBitvec::new(graph.nodes)).count() == walk.len());
+
+    graph
 }
